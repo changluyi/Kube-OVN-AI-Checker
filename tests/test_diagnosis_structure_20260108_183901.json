@@ -1,0 +1,9 @@
+{
+  "status": "failed",
+  "error": "No generations found in stream.",
+  "rounds": [],
+  "collected_data": {
+    "t0": {},
+    "tools": []
+  }
+}

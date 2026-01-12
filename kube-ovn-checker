@@ -1,0 +1,22 @@
+#!/bin/bash
+# Kube-OVN 智能诊断工具 - 正式启动脚本
+
+set -e
+
+# 加载 .env 文件
+if [ -f ".env" ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
+# 显示配置信息
+echo "🔧 Kube-OVN 智能诊断工具"
+echo ""
+echo "配置信息:"
+echo "  模型: ${LLM_MODEL:-未配置}"
+if [ -n "$LLM_API_BASE" ]; then
+    echo "  API: ${LLM_API_BASE}"
+fi
+echo ""
+
+# 运行诊断工具
+python3 -m kube_ovn_checker.cli.main "$@"

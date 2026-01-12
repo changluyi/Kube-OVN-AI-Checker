@@ -1,0 +1,107 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.spec
+build/
+dist/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files
+*.json.bak
+*.md.bak
+
+# Project specific
+*.backup
+*.bak
+checkpoints/
+*.pid
+
+# LangGraph / Langchain
+langchain_db/
+*.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# 测试缓存
+.pytest_cache/
+__pycache__/
+*.pyc
+
+# 诊断报告
+diagnosis_report_*.json
+reports/
+
+# 临时文档
+FINAL.md
+QUICKSTART.md
+README_FINAL.md
+
+# ========== 清理计划新增 ==========
+
+# 备份文件 (Git 作为单一真相来源)
+*_old.py
+backup/
+backup_*/
+
+# 开发工具
+dev-tools/
+scratch/
+
+# 收集的数据
+collected_data.json
+collected_*.json
