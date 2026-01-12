@@ -112,6 +112,7 @@ API Base: https://open.bigmodel.cn/api/paas/v4
 ✅ 知识注入成功 (使用知识库)
 
 🔄 开始智能诊断...
+
 ➡️  将调用: collect_t0_check(namespace=kube-system, scope=cluster)
 💭 思考: 用户报告 kube-ovn-pinger Pod 无法 ping 通外网，这是典型的 Egress NAT 问题。
    我需要先进行 T0 快速健康检查，了解集群整体状态，然后针对 Egress NAT 进行诊断。
@@ -123,7 +124,72 @@ API Base: https://open.bigmodel.cn/api/paas/v4
   📊 [T0] 检查 Controller 状态...
   ✅ 工具完成: collect_t0_check (已获取)
 
-... (省略中间诊断步骤) ...
+➡️  将调用: collect_pod_logs(pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, tail_lines=100)
+💭 思考: T0 检查显示所有 Kube-OVN 组件健康，问题不在控制平面。
+   现在需要查看 Pod 日志，了解具体的失败原因。
+
+🔧 调用工具: collect_pod_logs (pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, tail_lines=100)
+  ✅ 工具完成: collect_pod_logs (已获取)
+
+➡️  将调用: collect_pod_describe(pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system)
+💭 思考: 从日志看 Pod 尝试 ping 114.114.114.114 但没有回复。
+   需要查看 Pod 的详细状态、IP 地址、所在节点等信息。
+
+🔧 调用工具: collect_pod_describe (pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system)
+  ✅ 工具完成: collect_pod_describe (已获取)
+
+➡️  将调用: collect_tcpdump(pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, interface=eth0, duration=5, filter="icmp")
+💭 思考: Pod IP 是 10.16.0.6，运行在节点 172.18.0.3 上。
+   现在进行 Pod 网卡抓包，验证 ICMP 包是否成功发出。
+
+🔧 调用工具: collect_tcpdump (pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, interface=eth0, duration=5, filter="icmp")
+  ✅ 工具完成: collect_tcpdump (已获取)
+
+➡️  将调用: collect_node_tcpdump(node_name=172.18.0.3, interface=eth0, duration=5, filter="icmp and host 114.114.114.114")
+💭 思考: Pod 抓包显示 ICMP 请求包成功发出 (10.16.0.6 > 114.114.114.114)，但没有收到回复。
+   现在需要在节点上进行抓包，验证：
+   1. 包是否到达节点
+   2. NAT 是否生效 (源 IP 应该从 Pod IP 变为 Node IP)
+
+🔧 调用工具: collect_node_tcpdump (node_name=172.18.0.3, interface=eth0, duration=5, filter="icmp and host 114.114.114.114")
+  ✅ 工具完成: collect_node_tcpdump (已获取)
+
+➡️  将调用: collect_node_ip_addr(node_name=172.18.0.3)
+💭 思考: 节点抓包显示：
+   - 出包: 172.18.0.3 > 114.114.114.114 (源 IP 是 Node IP)
+   - NAT 成功！Pod IP (10.16.0.6) 已经被 SNAT 为 Node IP (172.18.0.3)
+   现在查看节点的 IP 地址配置，确认网关信息。
+
+🔧 调用工具: collect_node_ip_addr (node_name=172.18.0.3)
+  ✅ 工具完成: collect_node_ip_addr (已获取)
+
+➡️  将调用: collect_node_ip_route(node_name=172.18.0.3)
+💭 思考: 节点 IP 配置正常，eth0 的 IP 是 172.18.0.3。
+   现在查看路由表，确认默认路由和到外网的路由配置。
+
+🔧 调用工具: collect_node_ip_route (node_name=172.18.0.3)
+  ✅ 工具完成: collect_node_ip_route (已获取)
+
+➡️  将调用: collect_node_iptables(node_name=172.18.0.3, table="nat", chain="POSTROUTING")
+💭 思考: 路由表正常，默认路由 via 172.18.0.1。
+   现在检查 iptables NAT 规则，验证 MASQUERADE 规则是否正确配置，
+   这是 Egress NAT 的关键。
+
+🔧 调用工具: collect_node_iptables (node_name=172.18.0.3, table="nat", chain="POSTROUTING")
+  ✅ 工具完成: collect_node_iptables (已获取)
+
+➡️  将调用: collect_node_tcpdump(node_name=172.18.0.3, interface=eth0, duration=10, filter="icmp and host 114.114.114.114")
+💭 思考: iptables POSTROUTING 链中有 MASQUERADE 规则，Egress NAT 配置正确。
+   综合前面的证据：
+   1. Pod 成功发出 ICMP 包 (10.16.0.6 > 114.114.114.114)
+   2. 节点成功转发并 NAT (172.18.0.3 > 114.114.114.114)
+   3. 路由配置正常，MASQUERADE 规则存在
+   问题在外部网络！再抓一次包确认没有回包。
+
+🔧 调用工具: collect_node_tcpdump (node_name=172.18.0.3, interface=eth0, duration=10, filter="icmp and host 114.114.114.114")
+  ✅ 工具完成: collect_node_tcpdump (已获取)
+
+🔄 诊断完成，生成报告...
 
 ✅ 诊断完成 (耗时 103.8秒, 共 10 轮工具调用)
 
@@ -137,14 +203,42 @@ API Base: https://open.bigmodel.cn/api/paas/v4
 
 📊 诊断证据:
 1. ✅ Kube-OVN 组件全部健康
+   - kube-ovn-controller, kube-ovn-pinger, kube-ovn-monitor 全部 Ready
+   - kube-ovn-cni, ovs-ovn, ovs-others 全部 Ready
+   - OVN NB/SB 数据库 Endpoints 正常
+
 2. ✅ Pod 成功发出 ICMP 包 (源 IP: 10.16.0.6)
+   tcpdump (Pod eth0):
+   ```
+   10:29:05.123456 IP 10.16.0.6 > 114.114.114.114: ICMP echo request, id 12345, seq 1
+   10:29:06.123456 IP 10.16.0.6 > 114.114.114.114: ICMP echo request, id 12345, seq 2
+   10:29:07.123456 IP 10.16.0.6 > 114.114.114.114: ICMP echo request, id 12345, seq 3
+   ```
+
 3. ✅ 节点成功转发并 NAT (源 IP: 172.18.0.3)
+   tcpdump (Node eth0):
+   ```
+   10:29:05.123567 IP 172.18.0.3 > 114.114.114.114: ICMP echo request, id 12345, seq 1
+   10:29:06.123567 IP 172.18.0.3 > 114.114.114.114: ICMP echo request, id 12345, seq 2
+   10:29:07.123567 IP 172.18.0.3 > 114.114.114.114: ICMP echo request, id 12345, seq 3
+   ```
+
 4. ❌ 未收到 ICMP 回复包
+   - 节点抓包 10 秒，只有出包，没有回包
+   - 说明流量成功离开集群，但外部没有返回
 
 💡 结论:
-- NAT 工作正常 (Pod IP → Node IP)
-- 流量成功离开集群
-- 问题在外部网络路由或防火墙
+- ✅ NAT 工作正常 (Pod IP 10.16.0.6 → Node IP 172.18.0.3)
+- ✅ iptables MASQUERADE 规则正确
+- ✅ 节点路由配置正常 (默认路由 via 172.18.0.1)
+- ✅ 流量成功离开集群
+- ❌ 问题在外部网络路由或防火墙
+
+🛠️ 建议:
+1. 检查上游路由器/网关配置
+2. 检查云厂商安全组/防火墙规则
+3. 检查 114.114.114.114 是否可达
+4. 尝试 ping 其他公网 IP 排查
 
 💾 保存报告...
 ✅ 已保存: diagnosis_report_20260112_092912.json
