@@ -90,7 +90,20 @@ export LLM_MODEL="glm-4.6"  # 默认: glm-4.6
 
 ### 诊断输出示例
 
+```bash
+./kube-ovn-checker "kube-system下的kube-ovn-pinger-nl2r6 ping 外网114.114.114.114不通"
 ```
+
+**输出结果：**
+
+```
+🔧 Kube-OVN 智能诊断工具
+
+配置信息:
+  模型: glm-4.6
+  API: https://open.bigmodel.cn/api/paas/v4
+
+
 ╭──────────────────────╮
 │ 🚀 Kube-OVN 智能诊断 │
 ╰──────────────────────╯
@@ -101,147 +114,160 @@ export LLM_MODEL="glm-4.6"  # 默认: glm-4.6
 API Base: https://open.bigmodel.cn/api/paas/v4
 
 🤖 初始化 LLM Agent...
+
 ✅ Agent 已就绪
 
 🔍 开始诊断...
+
+Agent 将自主决定使用哪些工具来分析问题...
 
 📊 构建初始上下文...
 📚 匹配诊断规则: pod_to_external (置信度: 80.0%)
 📚 注入知识库内容...
 ✅ 自动发现 16 个知识文档
 ✅ 知识注入成功 (使用知识库)
-
 🔄 开始智能诊断...
-
 ➡️  将调用: collect_t0_check(namespace=kube-system, scope=cluster)
-💭 思考: 用户报告 kube-ovn-pinger Pod 无法 ping 通外网，这是典型的 Egress NAT 问题。
-   我需要先进行 T0 快速健康检查，了解集群整体状态，然后针对 Egress NAT 进行诊断。
-
+💭 思考: 用户报告 kube-ovn-pinger Pod 无法 ping 通外网，这是典型的 Egress NAT 问题。我需要先进行 T0 快速健康检查，了解集群整体状态，然后针对 Egress NAT 进行诊断。
+决策: 执行 T0 快速健康检查，了解 Kube-OVN 核心组件状态
+预期: 应...
 🔧 调用工具: collect_t0_check (namespace=kube-system, scope=cluster)
   📊 [T0] 检查 Deployments...
   📊 [T0] 检查 DaemonSets...
   📊 [T0] 检查 OVN 数据库 Endpoints...
   📊 [T0] 检查 Controller 状态...
-  ✅ 工具完成: collect_t0_check (已获取)
-
-➡️  将调用: collect_pod_logs(pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, tail_lines=100)
-💭 思考: T0 检查显示所有 Kube-OVN 组件健康，问题不在控制平面。
-   现在需要查看 Pod 日志，了解具体的失败原因。
-
-🔧 调用工具: collect_pod_logs (pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, tail_lines=100)
-  ✅ 工具完成: collect_pod_logs (已获取)
-
+  📦 [T0] 获取集群 Pod 统计...
+  🌐 [T0] 获取 Subnet 概览...
+  🔧 [T0] 获取节点网络配置...
+✅ 工具完成: collect_t0_check (已获取)
 ➡️  将调用: collect_pod_describe(pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system)
-💭 思考: 从日志看 Pod 尝试 ping 114.114.114.114 但没有回复。
-   需要查看 Pod 的详细状态、IP 地址、所在节点等信息。
-
+💭 思考: T0 检查显示所有 Kube-OVN 组件都健康，说明控制平面正常。现在需要查看具体的 kube-ovn-pinger Pod 状态和日志，了解 ping 失败的具体原因。
+决策: 查看 kube-ovn-pinger-nl2r6 Pod 的详细信息和日志
+预期: 应该能看到 Pod 运行状...
 🔧 调用工具: collect_pod_describe (pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system)
-  ✅ 工具完成: collect_pod_describe (已获取)
+✅ 工具完成: collect_pod_describe (已获取)
+➡️  将调用: collect_pod_logs(pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, tail=50, filter_errors=True)
+💭 思考: Pod 运行正常，IP 是 10.16.0.6，在 kube-ovn-control-plane 节点上。现在需要查看 pinger 的日志，了解 ping 114.114.114.114 失败的具体错误信息。
+决策: 查看 kube-ovn-pinger-nl2r6 的日志
+预期: 应该能...
+📋 分析日志: collect_pod_logs (pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, tail=50, filter_errors=True)
+✅ 工具完成: collect_pod_logs (已获取)
+➡️  将调用: collect_pod_logs(pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, tail=10, filter_errors=False)
+💭 思考: 从日志看，kube-ovn-pinger 配置的是 ping 1.1.1.1，而且 ping 1.1.1.1 是成功的（loss count 0，average rtt 85ms）。用户说 ping 114.114.114.114 不通，但 pinger 默认配置不是 ping 114.11...
+📋 分析日志: collect_pod_logs (pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, tail=10, filter_errors=False)
+✅ 工具完成: collect_pod_logs (已获取)
+➡️  将调用: collect_ovn_trace(target_type=pod, target_name=kube-system/kube-ovn-pinger-nl2r6, target_ip=114.114.114.114, protocol=icmp)
+💭 思考: 从日志确认 pinger 默认 ping 1.1.1.1 是成功的。现在需要使用 ovn-trace 来分析从 Pod (10.16.0.6) ping 114.114.114.114 的流量路径，看看是否在 OVN 层面被阻止。
+决策: 使用 ovn-trace 分析从 Pod ping ...
+🔧 调用工具: collect_ovn_trace (target_type=pod, target_name=kube-system/kube-ovn-pinger-nl2r6, target_ip=114.114.114.114, protocol=icmp)
+✅ 工具完成: collect_ovn_trace (已获取)
+➡️  将调用: collect_tcpdump(pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, count=5, filter_expr=icmp and host 114.114.114.114, timeout=10)
+💭 思考: ovn-trace 显示流量在逻辑层面被 loopback 检查阻止，但这只是逻辑模拟的限制。需要实际抓包来验证流量是否真正离开 Pod。根据 ovn-trace 的建议，下一步应该在 Pod 的 veth 网卡上抓包。
+决策: 在 kube-ovn-pinger Pod 的 veth 网卡...
+🔧 调用工具: collect_tcpdump (pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, count=5, filter_expr=icmp and host 114.114.114.114, timeout=10)
+✅ 工具完成: collect_tcpdump (已获取)
+➡️  将调用: collect_node_ip_addr(node_name=kube-ovn-control-plane)
+💭 思考: 很好！Pod 的 veth 网卡上确实有 ICMP 请求包发出，源 IP 是 10.16.0.6，目标 IP 是 114.114.114.114。这说明流量成功离开了 Pod。现在需要检查这些流量是否真正离开了节点，在节点的物理网卡上抓包验证。
+决策: 在节点 kube-ovn-contro...
+🔧 调用工具: collect_node_ip_addr (node_name=kube-ovn-control-plane)
+✅ 工具完成: collect_node_ip_addr (已获取)
+➡️  将调用: collect_node_tcpdump(node_name=kube-ovn-control-plane, interface=eth0, count=5, filter_expr=icmp and host 114.114.114.114, timeout=10)
+💭 思考: 节点的物理网卡是 eth0，IP 是 172.18.0.3。现在需要在 eth0 上抓包，验证 ping 114.114.114.114 的流量是否真正离开节点，以及是否经过了 NAT。
+决策: 在节点 eth0 网卡上抓包，验证 ping 114.114.114.114 的流量
+预期: 应...
+🔧 调用工具: collect_node_tcpdump (node_name=kube-ovn-control-plane, interface=eth0, count=5, filter_expr=icmp and host 114.114.114.114, timeout=10)
+✅ 工具完成: collect_node_tcpdump (已获取)
+➡️  将调用: collect_node_iptables(node_name=kube-ovn-control-plane, table=nat)
+💭 思考: 非常好！现在确认了关键信息：
+1. Pod veth 上：源 IP 是 10.16.0.6（Pod IP）
+2. 节点 eth0 上：源 IP 是 172.18.0.3（节点 IP）
 
-➡️  将调用: collect_tcpdump(pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, interface=eth0, duration=5, filter="icmp")
-💭 思考: Pod IP 是 10.16.0.6，运行在节点 172.18.0.3 上。
-   现在进行 Pod 网卡抓包，验证 ICMP 包是否成功发出。
-
-🔧 调用工具: collect_tcpdump (pod_name=kube-ovn-pinger-nl2r6, namespace=kube-system, interface=eth0, duration=5, filter="icmp")
-  ✅ 工具完成: collect_tcpdump (已获取)
-
-➡️  将调用: collect_node_tcpdump(node_name=172.18.0.3, interface=eth0, duration=5, filter="icmp and host 114.114.114.114")
-💭 思考: Pod 抓包显示 ICMP 请求包成功发出 (10.16.0.6 > 114.114.114.114)，但没有收到回复。
-   现在需要在节点上进行抓包，验证：
-   1. 包是否到达节点
-   2. NAT 是否生效 (源 IP 应该从 Pod IP 变为 Node IP)
-
-🔧 调用工具: collect_node_tcpdump (node_name=172.18.0.3, interface=eth0, duration=5, filter="icmp and host 114.114.114.114")
-  ✅ 工具完成: collect_node_tcpdump (已获取)
-
-➡️  将调用: collect_node_ip_addr(node_name=172.18.0.3)
-💭 思考: 节点抓包显示：
-   - 出包: 172.18.0.3 > 114.114.114.114 (源 IP 是 Node IP)
-   - NAT 成功！Pod IP (10.16.0.6) 已经被 SNAT 为 Node IP (172.18.0.3)
-   现在查看节点的 IP 地址配置，确认网关信息。
-
-🔧 调用工具: collect_node_ip_addr (node_name=172.18.0.3)
-  ✅ 工具完成: collect_node_ip_addr (已获取)
-
-➡️  将调用: collect_node_ip_route(node_name=172.18.0.3)
-💭 思考: 节点 IP 配置正常，eth0 的 IP 是 172.18.0.3。
-   现在查看路由表，确认默认路由和到外网的路由配置。
-
-🔧 调用工具: collect_node_ip_route (node_name=172.18.0.3)
-  ✅ 工具完成: collect_node_ip_route (已获取)
-
-➡️  将调用: collect_node_iptables(node_name=172.18.0.3, table="nat", chain="POSTROUTING")
-💭 思考: 路由表正常，默认路由 via 172.18.0.1。
-   现在检查 iptables NAT 规则，验证 MASQUERADE 规则是否正确配置，
-   这是 Egress NAT 的关键。
-
-🔧 调用工具: collect_node_iptables (node_name=172.18.0.3, table="nat", chain="POSTROUTING")
-  ✅ 工具完成: collect_node_iptables (已获取)
-
-➡️  将调用: collect_node_tcpdump(node_name=172.18.0.3, interface=eth0, duration=10, filter="icmp and host 114.114.114.114")
-💭 思考: iptables POSTROUTING 链中有 MASQUERADE 规则，Egress NAT 配置正确。
-   综合前面的证据：
-   1. Pod 成功发出 ICMP 包 (10.16.0.6 > 114.114.114.114)
-   2. 节点成功转发并 NAT (172.18.0.3 > 114.114.114.114)
-   3. 路由配置正常，MASQUERADE 规则存在
-   问题在外部网络！再抓一次包确认没有回包。
-
-🔧 调用工具: collect_node_tcpdump (node_name=172.18.0.3, interface=eth0, duration=10, filter="icmp and host 114.114.114.114")
-  ✅ 工具完成: collect_node_tcpdump (已获取)
-
-🔄 诊断完成，生成报告...
-
+这说明 NAT 工作正常，流量成功离开了节点。但是没有看到 ICMP 回复包，这表明问题在外部网络。让我检查...
+🔧 调用工具: collect_node_iptables (node_name=kube-ovn-control-plane, table=nat)
+✅ 工具完成: collect_node_iptables (已获取)
+➡️  将调用: collect_node_tcpdump(node_name=kube-ovn-control-plane, interface=eth0, count=3, filter_expr=icmp and host 8.8.8.8, timeout=10)
+💭 思考: 从 iptables 规则可以看到 OVN 的 NAT 配置，特别是 `-A OVN-POSTROUTING -m set --match-set ovn40subnets src -m set --match-set ovn40subnets dst -j OVN-MASQUERADE` ...
+🔧 调用工具: collect_node_tcpdump (node_name=kube-ovn-control-plane, interface=eth0, count=3, filter_expr=icmp and host 8.8.8.8, timeout=10)
+✅ 工具完成: collect_node_tcpdump (已获取)
 ✅ 诊断完成 (耗时 103.8秒, 共 10 轮工具调用)
+🎯 提取诊断结果...
+
+✅ 诊断完成
+
 
 ╭─────────────╮
 │ 🎯 诊断结果 │
 ╰─────────────╯
 
+🧠 诊断思维链:
+
+  1. 思考: 用户报告 kube-ovn-pinger Pod 无法 ping 通外网，这是典型的 Egress NAT 问题。我需要先进行 T0 快速健康检查，了解集群整体状态，然后针对 Egress NAT 进行诊断。
+
+决策: 执行 T0 快速健康检查，了解 Kube-OVN 核心组件状态
+预期: ...
+     → 调用: collect_t0_check(scope=cluster)
+
+  2. 思考: T0 检查显示所有 Kube-OVN 组件都健康，说明控制平面正常。现在需要查看具体的 kube-ovn-pinger Pod 状态和日志，了解 ping 失败的具体原因。
+
+决策: 查看 kube-ovn-pinger-nl2r6 Pod 的详细信息和日志
+预期: 应该能看到 Pod 运行...
+     → 调用: collect_pod_describe(pod_name=kube-ovn-pinger-nl2r6)
+
+  3. 思考: Pod 运行正常，IP 是 10.16.0.6，在 kube-ovn-control-plane 节点上。现在需要查看 pinger 的日志，了解 ping 114.114.114.114 失败的具体错误信息。
+
+决策: 查看 kube-ovn-pinger-nl2r6 的日志
+预期: 应该...
+     → 调用: collect_pod_logs(pod_name=kube-ovn-pinger-nl2r6, tail=50, filter_errors=True)
+
+  4. 思考: 从日志看，kube-ovn-pinger 配置的是 ping 1.1.1.1，而且 ping 1.1.1.1 是成功的（loss count 0，average rtt 85ms）。用户说 ping 114.114.114.114 不通，但 pinger 默认配置不是 ping 114.11...
+     → 调用: collect_pod_logs(pod_name=kube-ovn-pinger-nl2r6, tail=10, filter_errors=False)
+
+  5. 思考: 从日志确认 pinger 默认 ping 1.1.1.1 是成功的。现在需要使用 ovn-trace 来分析从 Pod (10.16.0.6) ping 114.114.114.114 的流量路径，看看是否在 OVN 层面被阻止。
+
+决策: 使用 ovn-trace 分析从 Pod ping...
+     → 调用: collect_ovn_trace(target_type=pod, target_name=kube-system/kube-ovn-pinger-nl2r6, target_ip=114.11...)
+
+  6. 思考: ovn-trace 显示流量在逻辑层面被 loopback 检查阻止，但这只是逻辑模拟的限制。需要实际抓包来验证流量是否真正离开 Pod。根据 ovn-trace 的建议，下一步应该在 Pod 的 veth 网卡上抓包。
+
+决策: 在 kube-ovn-pinger Pod 的 veth 网...
+     → 调用: collect_tcpdump(pod_name=kube-ovn-pinger-nl2r6, count=5, filter_expr=icmp and host 114.114.114.1...)
+
+  7. 思考: 很好！Pod 的 veth 网卡上确实有 ICMP 请求包发出，源 IP 是 10.16.0.6，目标 IP 是 114.114.114.114。这说明流量成功离开了 Pod。现在需要检查这些流量是否真正离开了节点，在节点的物理网卡上抓包验证。
+
+决策: 在节点 kube-ovn-contr...
+     → 调用: collect_node_ip_addr(node_name=kube-ovn-control-plane)
+
+  8. 思考: 节点的物理网卡是 eth0，IP 是 172.18.0.3。现在需要在 eth0 上抓包，验证 ping 114.114.114.114 的流量是否真正离开节点，以及是否经过了 NAT。
+
+决策: 在节点 eth0 网卡上抓包，验证 ping 114.114.114.114 的流量
+预期: ...
+     → 调用: collect_node_tcpdump(node_name=kube-ovn-control-plane, interface=eth0, count=5, filter_expr=icmp and ...)
+
+  9. 思考: 非常好！现在确认了关键信息：
+1. Pod veth 上：源 IP 是 10.16.0.6（Pod IP）
+2. 节点 eth0 上：源 IP 是 172.18.0.3（节点 IP）
+
+这说明 NAT 工作正常，流量成功离开了节点。但是没有看到 ICMP 回复包，这表明问题在外部网络。让我检...
+     → 调用: collect_node_iptables(node_name=kube-ovn-control-plane, table=nat)
+
+  10. 思考: 从 iptables 规则可以看到 OVN 的 NAT 配置，特别是 `-A OVN-POSTROUTING -m set --match-set ovn40subnets src -m set --match-set ovn40subnets dst -j OVN-MASQUERADE` ...
+     → 调用: collect_node_tcpdump(node_name=kube-ovn-control-plane, interface=eth0, count=3, filter_expr=icmp and ...)
+
+──────────────────────────────────────────────────────────────────────
+
 📋 问题: kube-system 下的 kube-ovn-pinger-nl2r6 Pod ping 外网 114.114.114.114 不通
 
 🔍 根因: 外部网络问题，不是 Kube-OVN 配置问题
 
-📊 诊断证据:
-1. ✅ Kube-OVN 组件全部健康
-   - kube-ovn-controller, kube-ovn-pinger, kube-ovn-monitor 全部 Ready
-   - kube-ovn-cni, ovs-ovn, ovs-others 全部 Ready
-   - OVN NB/SB 数据库 Endpoints 正常
-
-2. ✅ Pod 成功发出 ICMP 包 (源 IP: 10.16.0.6)
-   tcpdump (Pod eth0):
-   ```
-   10:29:05.123456 IP 10.16.0.6 > 114.114.114.114: ICMP echo request, id 12345, seq 1
-   10:29:06.123456 IP 10.16.0.6 > 114.114.114.114: ICMP echo request, id 12345, seq 2
-   10:29:07.123456 IP 10.16.0.6 > 114.114.114.114: ICMP echo request, id 12345, seq 3
-   ```
-
-3. ✅ 节点成功转发并 NAT (源 IP: 172.18.0.3)
-   tcpdump (Node eth0):
-   ```
-   10:29:05.123567 IP 172.18.0.3 > 114.114.114.114: ICMP echo request, id 12345, seq 1
-   10:29:06.123567 IP 172.18.0.3 > 114.114.114.114: ICMP echo request, id 12345, seq 2
-   10:29:07.123567 IP 172.18.0.3 > 114.114.114.114: ICMP echo request, id 12345, seq 3
-   ```
-
-4. ❌ 未收到 ICMP 回复包
-   - 节点抓包 10 秒，只有出包，没有回包
-   - 说明流量成功离开集群，但外部没有返回
-
-💡 结论:
-- ✅ NAT 工作正常 (Pod IP 10.16.0.6 → Node IP 172.18.0.3)
-- ✅ iptables MASQUERADE 规则正确
-- ✅ 节点路由配置正常 (默认路由 via 172.18.0.1)
-- ✅ 流量成功离开集群
-- ❌ 问题在外部网络路由或防火墙
-
-🛠️ 建议:
-1. 检查上游路由器/网关配置
-2. 检查云厂商安全组/防火墙规则
-3. 检查 114.114.114.114 是否可达
-4. 尝试 ping 其他公网 IP 排查
+📊 诊断轮次: 10
+🔧 调用工具: collect_node_ip_addr, collect_node_iptables, collect_node_tcpdump, collect_ovn_trace, collect_pod_describe, collect_pod_logs, collect_t0_check, collect_tcpdump
 
 💾 保存报告...
 ✅ 已保存: diagnosis_report_20260112_092912.json
+
+
+╭─────────────╮
+│ ✨ 诊断完成 │
 ```
 
 ---
